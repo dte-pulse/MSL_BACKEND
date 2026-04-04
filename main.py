@@ -4,7 +4,6 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from datetime import date
 import os
-import openpyxl
 import models, schemas, database
 from database import get_db, engine
 
@@ -29,41 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ==================== AUTHENTICATION ====================
 
-DEFAULT_PASSWORD = "Pulse@123"
-
-# Predefined users based on user requirements
-PREDEFINED_USERS = [
-    {"username": "Dr Nikhilesh Andhi", "employee_id": "E10472", "role": "Scientific Officer"},
-    {"username": "Dr Chetan Dilip Rao There", "employee_id": "E10656", "role": "Scientific Officer"},
-    {"username": "Dr ShivDinesh Dyarapogu", "employee_id": "E10771", "role": "Scientific Officer"},
-    {"username": "SUMANGAL GHATAK", "employee_id": "E9250", "role": "Asst General Manager"},
-    {"username": "Dr Hasrsh Chaturvedi", "employee_id": "E9999", "role": "Associate Vice President"},
-    {"username": "BLuser1", "employee_id": "E1000", "role": "BL"},
-    {"username": "BMuser1", "employee_id": "E2000", "role": "BM"},
-]
-
-@app.post("/api/seed-users")
-def seed_users(db: Session = Depends(get_db)):
-    """Seed the users table with predefined users"""
-    # Check if users already exist
-    existing_count = db.query(models.User).count()
-    if existing_count > 0:
-        return {"message": f"Users already seeded. Found {existing_count} users."}
-    
-    # Create users
-    for user_data in PREDEFINED_USERS:
-        db_user = models.User(
-            username=user_data["username"],
-            employee_id=user_data["employee_id"],
-            role=user_data["role"],
-            password=DEFAULT_PASSWORD
-        )
-        db.add(db_user)
-    
-    db.commit()
-    return {"message": f"Successfully seeded {len(PREDEFINED_USERS)} users"}
 
 @app.post("/api/login", response_model=schemas.LoginResponse)
 def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
@@ -342,103 +307,9 @@ def get_request_logs(request_id: int, db: Session = Depends(get_db)):
     
     return logs
 
-# ==================== SEED DATA ====================
-
-@app.post("/api/seed-doctors")
-def seed_doctors(db: Session = Depends(get_db)):
-    """Seed doctors from Doctors_Format.xlsx (priority_drs_list sheet)."""
-    # Locate the Excel file (one directory up from the backend folder)
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    excel_path = os.path.join(base_dir, "..", "Doctors_Format.xlsx")
-
-    if not os.path.exists(excel_path):
-        raise HTTPException(
-            status_code=500,
-            detail=f"Excel file not found at: {excel_path}"
-        )
-
-    try:
-        wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
-        sheet_name = "priority_drs_list_01.09.25"
-        if sheet_name not in wb.sheetnames:
-            sheet_name = wb.sheetnames[0]
-        ws = wb[sheet_name]
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to open Excel: {str(e)}")
-
-    # Read header row and map column names to 0-based indices
-    headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
-    col = {h: i for i, h in enumerate(headers) if h}
-
-    added_count = 0
-    skipped_count = 0
-    seen_uids: set = set()
-
-    # Pre-load existing uid_numbers to avoid duplicate inserts
-    existing_uids = {r[0] for r in db.query(models.Doctor.uid_number).all() if r[0]}
-
-    batch = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
-        dr_name = row[col["Dr_Name"]] if "Dr_Name" in col else None
-        uid_raw = row[col["uid_number"]] if "uid_number" in col else None
-        uid = str(uid_raw).strip() if uid_raw is not None else None
-
-        # Skip empty rows
-        if not dr_name:
-            continue
-
-        # Deduplicate on uid_number across this batch and existing DB rows
-        if uid and (uid in seen_uids or uid in existing_uids):
-            skipped_count += 1
-            continue
-        if uid:
-            seen_uids.add(uid)
-
-        def _get(key, default=None, r=row):
-            idx = col.get(key)
-            if idx is None:
-                return default
-            val = r[idx]
-            return str(val).strip() if val is not None else default
-
-        doctor = models.Doctor(
-            name=str(dr_name).strip(),
-            speciality=_get("Speciality"),
-            therapy_area=_get("Speciality"),   # mirror for backward compatibility
-            is_priority_doctor=True,            # all rows in this sheet are priority doctors
-            division=_get("Division"),
-            territory=_get("Territory"),
-            emp_code=_get("Emp_Code"),
-            emp_name=_get("Emp_Name"),
-            region=_get("Region"),
-            doctor_id_ext=_get("Doctor_ID"),
-            uid_number=uid,
-            bm_territory=_get("BM_Territory"),
-            bl_territory=_get("BL_Territory"),
-            bh_territory=_get("BH_Territory"),
-            sbuh_territory=_get("SBUH_Territory"),
-        )
-        batch.append(doctor)
-
-        # Bulk-save in batches of 500 to control memory
-        if len(batch) >= 500:
-            db.bulk_save_objects(batch)
-            db.commit()
-            added_count += len(batch)
-            batch = []
-
-    # Commit any remaining rows
-    if batch:
-        db.bulk_save_objects(batch)
-        db.commit()
-        added_count += len(batch)
-
-    wb.close()
-    return {
-        "message": f"Seeding complete from sheet '{sheet_name}'",
-        "added": added_count,
-        "skipped_duplicates": skipped_count,
-    }
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
 
 if __name__ == "__main__":
     import uvicorn
