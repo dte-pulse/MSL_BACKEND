@@ -32,7 +32,7 @@ app.add_middleware(
 
 @app.post("/api/login", response_model=schemas.LoginResponse)
 def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
-    """Mock login - validates username and role"""
+    """Mock login - validates username, password, role, and empid"""
     valid_roles = ["BL", "BM", "MSL", "SBUH/BH", "MSL Manager", "HOD"]
     
     if login_data.role not in valid_roles:
@@ -40,8 +40,29 @@ def login(login_data: schemas.LoginRequest, db: Session = Depends(get_db)):
     
     return {
         "username": login_data.username,
+        "password": login_data.password,
         "role": login_data.role,
+        "empid": login_data.empid,
         "message": "Login successful"
+    }
+
+@app.get("/api/login", response_model=schemas.LoginResponse)
+def get_login(username: str = Query(...), password: str = Query(...), db: Session = Depends(get_db)):
+    """Retrieve login information by username and password"""
+    valid_roles = ["BL", "BM", "MSL", "SBUH/BH", "MSL Manager", "HOD"]
+    
+    # For mock purposes, validate and return user info
+    # In production, this would query a user database
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Username and password are required")
+    
+    # Mock response - in production, fetch from database
+    return {
+        "username": username,
+        "password": password,
+        "role": "MSL",  # Default role for mock
+        "empid": "EMP001",  # Default empid for mock
+        "message": "User information retrieved"
     }
 
 # ==================== DOCTORS ====================
@@ -127,7 +148,7 @@ def create_request(request: schemas.RequestCreate, db: Session = Depends(get_db)
 def get_requests(
     requested_by: Optional[str] = None,
     role: Optional[str] = None,
-    status: Optional[str] = None,
+    user_classification: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     """Get requests with optional filters"""
@@ -138,8 +159,8 @@ def get_requests(
     
     if requested_by:
         query = query.filter(models.Request.requested_by == requested_by)
-    if status:
-        query = query.filter(models.Request.status == status)
+    if user_classification:
+        query = query.filter(models.Request.user_classification == user_classification)
     
     # Role-based filtering
     if role in ["BL", "BM"]:
@@ -159,7 +180,7 @@ def get_requests(
             objective=request.objective,
             expected_outcome=request.expected_outcome,
             priority=request.priority,
-            status=request.status,
+            user_classification=request.user_classification,
             created_at=request.created_at,
             doctor_name=doctor_name
         )
@@ -175,20 +196,24 @@ def get_request(request_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Request not found")
     return request
 
-@app.put("/api/requests/{request_id}/status")
-def update_request_status(
+@app.put("/api/requests/{request_id}/user-classification")
+def update_request_user_classification(
     request_id: int,
-    status: str,
+    user_classification: str,
     db: Session = Depends(get_db)
 ):
-    """Update request status"""
+    """Update request user classification (potential or non-potential)"""
+    valid_classifications = ["potential", "non-potential"]
+    if user_classification not in valid_classifications:
+        raise HTTPException(status_code=400, detail="Invalid user classification. Must be 'potential' or 'non-potential'")
+    
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
-    request.status = status
+    request.user_classification = user_classification
     db.commit()
-    return {"message": "Status updated successfully"}
+    return {"message": "User classification updated successfully"}
 
 # ==================== DOCTOR INTERACTIONS ====================
 

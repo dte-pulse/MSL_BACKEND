@@ -65,7 +65,7 @@ class RequestBase(BaseModel):
     expected_outcome: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
-    status: Optional[str] = "Pending"
+    user_classification: Optional[str] = "potential"
 
 class RequestCreate(RequestBase):
     requested_by: str
@@ -92,7 +92,7 @@ class RequestSummary(BaseModel):
     objective: Optional[str] = None
     expected_outcome: Optional[str] = None
     priority: Optional[str] = None
-    status: str
+    user_classification: str
     created_at: datetime
     doctor_name: Optional[str] = None
     
@@ -102,11 +102,15 @@ class RequestSummary(BaseModel):
 # Login Schemas
 class LoginRequest(BaseModel):
     username: str
+    password: str
     role: str
+    empid: str
 
 class LoginResponse(BaseModel):
     username: str
+    password: str
     role: str
+    empid: str
     message: str
 
 # Activity Log Response
