@@ -9,3 +9,4 @@ passlib[bcrypt]
 python-multipart
 alembic
 python-dotenv
+openpyxl

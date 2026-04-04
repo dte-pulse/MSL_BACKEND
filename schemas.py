@@ -5,8 +5,22 @@ from datetime import datetime, date
 # Doctor Schemas
 class DoctorBase(BaseModel):
     name: str
+    speciality: Optional[str] = None
     therapy_area: Optional[str] = None
-    is_priority_doctor: bool = False
+    is_priority_doctor: bool = True
+
+    # Excel columns
+    division: Optional[str] = None
+    territory: Optional[str] = None
+    emp_code: Optional[str] = None
+    emp_name: Optional[str] = None
+    region: Optional[str] = None
+    doctor_id_ext: Optional[str] = None
+    uid_number: Optional[str] = None
+    bm_territory: Optional[str] = None
+    bl_territory: Optional[str] = None
+    bh_territory: Optional[str] = None
+    sbuh_territory: Optional[str] = None
 
 class DoctorCreate(DoctorBase):
     pass
@@ -47,11 +61,11 @@ class OfficeActivityBase(BaseModel):
     linked_outputs: Optional[str] = None
 
 class OfficeActivityCreate(OfficeActivityBase):
-    request_id: int
+    msl_username: str
 
 class OfficeActivity(OfficeActivityBase):
     id: int
-    request_id: int
+    msl_username: str
     created_at: datetime
     
     class Config:
@@ -78,7 +92,6 @@ class Request(RequestBase):
     created_at: datetime
     doctor: Optional[Doctor] = None
     doctor_interactions: List[DoctorInteraction] = []
-    office_activities: List[OfficeActivity] = []
     
     class Config:
         from_attributes = True
@@ -99,18 +112,31 @@ class RequestSummary(BaseModel):
     class Config:
         from_attributes = True
 
+# User Schemas
+class UserBase(BaseModel):
+    username: str
+    employee_id: str
+    role: str
+
+class UserCreate(UserBase):
+    password: str
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+    
+    class Config:
+        from_attributes = True
+
 # Login Schemas
 class LoginRequest(BaseModel):
-    username: str
+    employee_id: str
     password: str
-    role: str
-    empid: str
 
 class LoginResponse(BaseModel):
     username: str
-    password: str
     role: str
-    empid: str
+    employee_id: str
     message: str
 
 # Activity Log Response

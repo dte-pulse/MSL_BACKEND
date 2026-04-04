@@ -7,10 +7,24 @@ class Doctor(Base):
     __tablename__ = "doctors"
     
     id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    therapy_area = Column(String(255), nullable=True)
-    is_priority_doctor = Column(Boolean, default=False)
-    
+    name = Column(String(255), nullable=False)           # Dr_Name
+    speciality = Column(String(255), nullable=True)       # Speciality (replaces therapy_area)
+    therapy_area = Column(String(255), nullable=True)     # kept for backward compat / grouping
+    is_priority_doctor = Column(Boolean, default=True)    # all seeded doctors are priority
+
+    # Fields from Excel
+    division = Column(String(255), nullable=True)         # Division
+    territory = Column(String(255), nullable=True)        # Territory (MR location)
+    emp_code = Column(String(100), nullable=True)         # Emp_Code
+    emp_name = Column(String(255), nullable=True)         # Emp_Name (MR name)
+    region = Column(String(255), nullable=True)           # Region
+    doctor_id_ext = Column(String(100), nullable=True)    # Doctor_ID (external)
+    uid_number = Column(String(100), nullable=True)       # uid_number
+    bm_territory = Column(String(255), nullable=True)     # BM_Territory
+    bl_territory = Column(String(255), nullable=True)     # BL_Territory
+    bh_territory = Column(String(255), nullable=True)     # BH_Territory
+    sbuh_territory = Column(String(255), nullable=True)   # SBUH_Territory
+
     # Relationship
     requests = relationship("Request", back_populates="doctor")
 
@@ -32,7 +46,6 @@ class Request(Base):
     # Relationships
     doctor = relationship("Doctor", back_populates="requests")
     doctor_interactions = relationship("DoctorInteraction", back_populates="request", cascade="all, delete-orphan")
-    office_activities = relationship("OfficeActivity", back_populates="request", cascade="all, delete-orphan")
 
 class DoctorInteraction(Base):
     __tablename__ = "doctor_interactions"
@@ -56,12 +69,19 @@ class OfficeActivity(Base):
     __tablename__ = "office_activities"
     
     id = Column(Integer, primary_key=True, index=True)
-    request_id = Column(Integer, ForeignKey("requests.id"), nullable=False)
+    msl_username = Column(String(255), nullable=False)
     activity_date = Column(Date, nullable=False)
     activity_category = Column(String(100), nullable=False)
     summary = Column(Text, nullable=True)
     linked_outputs = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class User(Base):
+    __tablename__ = "users"
     
-    # Relationship
-    request = relationship("Request", back_populates="office_activities")
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(255), nullable=False)
+    password = Column(String(255), nullable=False)
+    employee_id = Column(String(50), unique=True, nullable=False)
+    role = Column(String(100), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
