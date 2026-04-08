@@ -82,7 +82,7 @@ class RequestBase(BaseModel):
     expected_outcome: Optional[str] = None
     priority: Optional[str] = None
     notes: Optional[str] = None
-    user_classification: Optional[str] = "potential"
+    user_classification: Optional[str] = "default"
 
 class RequestCreate(RequestBase):
     requested_by: str

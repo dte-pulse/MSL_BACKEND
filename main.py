@@ -176,8 +176,7 @@ def create_request(request: schemas.RequestCreate, db: Session = Depends(get_db)
             objective=request.objective,
             expected_outcome=request.expected_outcome,
             priority=request.priority,
-            notes=request.notes,
-            user_classification=request.user_classification
+            notes=request.notes
         )
         
         print(f"DEBUG - Request object created with territory='{db_request.territory}', region='{db_request.region}'")
@@ -262,21 +261,36 @@ def get_request(request_id: int, db: Session = Depends(get_db)):
 @app.put("/api/requests/{request_id}/user-classification")
 def update_request_user_classification(
     request_id: int,
-    user_classification: str,
+    user_classification: str = Query(..., description="User classification: potential, non-potential, or default"),
     db: Session = Depends(get_db)
 ):
-    """Update request user classification (potential or non-potential)"""
-    valid_classifications = ["potential", "non-potential"]
+    """Update request user classification (potential, non-potential, or default) and sync to doctor profile"""
+    valid_classifications = ["potential", "non-potential", "default"]
     if user_classification not in valid_classifications:
-        raise HTTPException(status_code=400, detail="Invalid user classification. Must be 'potential' or 'non-potential'")
+        raise HTTPException(status_code=400, detail="Invalid user classification. Must be 'potential', 'non-potential', or 'default'")
     
     request = db.query(models.Request).filter(models.Request.id == request_id).first()
     if not request:
         raise HTTPException(status_code=404, detail="Request not found")
     
+    # Update request classification
     request.user_classification = user_classification
+    
+    # Sync to doctor profile - update the doctor's priority status based on classification
+    doctor = db.query(models.Doctor).filter(models.Doctor.id == request.doctor_id).first()
+    if doctor:
+        if user_classification == "potential":
+            doctor.is_priority_doctor = True
+        elif user_classification == "non-potential":
+            doctor.is_priority_doctor = False
+        # For "default", keep the doctor's current priority status
+    
     db.commit()
-    return {"message": "User classification updated successfully"}
+    return {
+        "message": "User classification updated successfully",
+        "user_classification": user_classification,
+        "doctor_updated": doctor is not None
+    }
 
 # ==================== DOCTOR INTERACTIONS ====================
 

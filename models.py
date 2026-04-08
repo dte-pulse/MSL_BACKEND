@@ -42,7 +42,7 @@ class Request(Base):
     expected_outcome = Column(Text, nullable=True)
     priority = Column(String(50), nullable=True)
     notes = Column(Text, nullable=True)
-    user_classification = Column(String(50), default="potential")
+    user_classification = Column(String(50), default="default")
     created_at = Column(DateTime, default=datetime.utcnow)
     
     # Relationships
